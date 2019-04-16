@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 
 from linebot.models.events import MessageEvent
@@ -6,9 +7,33 @@ from linebot.utils import LOGGER
 
 
 class WebhookHandlerAsync(WebhookHandler):
-
     def __init__(self, channel_secret):
         super().__init__(channel_secret)
+
+    def add(self, event, message=None):
+        def decorator(func):
+            if not asyncio.iscoroutinefunction(func):
+                raise TypeError("Handler must be a coroutine function")
+
+            if isinstance(message, (list, tuple)):
+                for it in message:
+                    self.__add_handler(func, event, message=it)
+            else:
+                self.__add_handler(func, event, message=message)
+
+            return func
+
+        return decorator
+
+    def default(self):
+        def decorator(func):
+            if not asyncio.iscoroutinefunction(func):
+                raise TypeError("Handler must be a coroutine function")
+
+            self._default = func
+            return func
+
+        return decorator
 
     async def handle(self, body, signature):
         events = self.parser.parse(body, signature)
@@ -18,8 +43,7 @@ class WebhookHandlerAsync(WebhookHandler):
             key = None
 
             if isinstance(event, MessageEvent):
-                key = self.__get_handler_key(
-                    event.__class__, event.message.__class__)
+                key = self.__get_handler_key(event.__class__, event.message.__class__)
                 func = self._handlers.get(key, None)
 
             if func is None:
@@ -30,7 +54,7 @@ class WebhookHandlerAsync(WebhookHandler):
                 func = self._default
 
             if func is None:
-                LOGGER.info('No handler of ' + key + ' and no default handler')
+                LOGGER.info("No handler of " + key + " and no default handler")
             else:
                 args_count = self.__get_args_count(func)
                 if args_count == 0:
@@ -52,4 +76,4 @@ class WebhookHandlerAsync(WebhookHandler):
         if message is None:
             return event.__name__
         else:
-            return event.__name__ + '_' + message.__name__
+            return event.__name__ + "_" + message.__name__
