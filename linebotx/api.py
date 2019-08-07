@@ -3,7 +3,21 @@ import json
 from linebot.__about__ import __version__
 from linebot.exceptions import LineBotApiError
 from linebot.http_client import HttpClient
-from linebot.models import Error, Profile, MemberIds, Content, RichMenuResponse
+from linebot.models import (
+    Content,
+    Error,
+    MemberIds,
+    MessageDeliveryBroadcastResponse,
+    MessageDeliveryMulticastResponse,
+    MessageDeliveryPushResponse,
+    MessageDeliveryReplyResponse,
+    MessageQuotaResponse,
+    Profile,
+    RichMenuResponse,
+    MessageQuotaConsumptionResponse,
+    IssueLinkTokenResponse,
+    IssueChannelTokenResponse,
+)
 
 from .http_client import AioHttpClient
 
@@ -85,6 +99,13 @@ class LineBotApiAsync(object):
             timeout=timeout,
         )
 
+    async def link_rich_menu_to_users(self, user_ids, rich_menu_id, timeout=None):
+        await self._post(
+            "/v2/bot/richmenu/bulk/link",
+            data=json.dumps({"userIds": user_ids, "richMenuId": rich_menu_id}),
+            timeout=timeout,
+        )
+
     async def get_rich_menu_list(self, timeout=None):
         response = await self._get("/v2/bot/richmenu/list", timeout=timeout)
 
@@ -98,7 +119,7 @@ class LineBotApiAsync(object):
     async def set_rich_menu_image(
         self, rich_menu_id, content_type, content, timeout=None
     ):
-        self._post(
+        await self._post(
             "/v2/bot/richmenu/{rich_menu_id}/content".format(rich_menu_id=rich_menu_id),
             data=content,
             headers={"Content-Type": content_type},
@@ -116,6 +137,13 @@ class LineBotApiAsync(object):
     async def unlink_rich_menu_from_user(self, user_id, timeout=None):
         await self._delete(
             "/v2/bot/user/{user_id}/richmenu".format(user_id=user_id), timeout=timeout
+        )
+
+    async def unlink_rich_menu_from_users(self, user_ids, timeout=None):
+        await self._post(
+            "/v2/bot/richmenu/bulk/unlink",
+            data=json.dumps({"userIds": user_ids}),
+            timeout=timeout,
         )
 
     async def get_rich_menu_image(self, rich_menu_id, timeout=None):
@@ -207,6 +235,117 @@ class LineBotApiAsync(object):
     async def leave_room(self, room_id, timeout=None):
         await self._post(
             "/v2/bot/room/{room_id}/leave".format(room_id=room_id), timeout=timeout
+        )
+
+    async def broadcast(self, messages, notification_disabled=False, timeout=None):
+        if not isinstance(messages, (list, tuple)):
+            messages = [messages]
+
+        data = {
+            "messages": [message.as_json_dict() for message in messages],
+            "notificationDisabled": notification_disabled,
+        }
+
+        await self._post(
+            "/v2/bot/message/broadcast", data=json.dumps(data), timeout=timeout
+        )
+
+    async def cancel_default_rich_menu(self, timeout=None):
+        await self._delete("/v2/bot/user/all/richmenu", timeout=timeout)
+
+    async def set_default_rich_menu(self, rich_menu_id, timeout=None):
+        await self._post(
+            "/v2/bot/user/all/richmenu/{rich_menu_id}".format(
+                rich_menu_id=rich_menu_id
+            ),
+            timeout=timeout,
+        )
+
+    async def get_default_rich_menu(self, timeout=None):
+        response = await self._get("/v2/bot/user/all/richmenu", timeout=timeout)
+
+        json_resp = await response.json
+        return json_resp.get("richMenuId")
+
+    async def get_message_delivery_broadcast(self, date, timeout=None):
+        response = await self._get(
+            "/v2/bot/message/delivery/broadcast?date={date}".format(date=date),
+            timeout=timeout,
+        )
+
+        json_resp = await response.json
+        return MessageDeliveryBroadcastResponse.new_from_json_dict(json_resp)
+
+    async def get_message_delivery_reply(self, date, timeout=None):
+        response = await self._get(
+            "/v2/bot/message/delivery/reply?date={date}".format(date=date),
+            timeout=timeout,
+        )
+
+        json_resp = await response.json
+        return MessageDeliveryReplyResponse.new_from_json_dict(json_resp)
+
+    async def get_message_delivery_push(self, date, timeout=None):
+        response = await self._get(
+            "/v2/bot/message/delivery/push?date={date}".format(date=date),
+            timeout=timeout,
+        )
+
+        json_resp = await response.json
+        return MessageDeliveryPushResponse.new_from_json_dict(json_resp)
+
+    async def get_message_delivery_multicast(self, date, timeout=None):
+        response = await self._get(
+            "/v2/bot/message/delivery/multicast?date={date}".format(date=date),
+            timeout=timeout,
+        )
+
+        json_resp = await response.json
+        return MessageDeliveryMulticastResponse.new_from_json_dict(json_resp)
+
+    async def get_message_quota(self, timeout=None):
+        response = await self._get("/v2/bot/message/quota", timeout=timeout)
+
+        json_resp = await response.json
+        return MessageQuotaResponse.new_from_json_dict(json_resp)
+
+    async def get_message_quota_consumption(self, timeout=None):
+        response = await self._get("/v2/bot/message/quota/consumption", timeout=timeout)
+
+        json_resp = await response.json
+        return MessageQuotaConsumptionResponse.new_from_json_dict(json_resp)
+
+    async def issue_link_token(self, user_id, timeout=None):
+        response = await self._post(
+            "/v2/bot/user/{user_id}/linkToken".format(user_id=user_id), timeout=timeout
+        )
+
+        json_resp = await response.json
+        return IssueLinkTokenResponse.new_from_json_dict(json_resp)
+
+    async def issue_channel_token(
+        self, client_id, client_secret, grant_type="client_credentials", timeout=None
+    ):
+        response = await self._post(
+            "/v2/oauth/accessToken",
+            data={
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "grant_type": grant_type,
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            timeout=timeout,
+        )
+
+        json_resp = await response.json
+        return IssueChannelTokenResponse.new_from_json_dict(json_resp)
+
+    async def revoke_channel_token(self, access_token, timeout=None):
+        await self._post(
+            "/v2/oauth/revoke",
+            data={"access_token": access_token},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            timeout=timeout,
         )
 
     async def _get(self, path, params=None, headers=None, stream=False, timeout=None):

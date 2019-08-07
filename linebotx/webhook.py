@@ -36,9 +36,9 @@ class WebhookHandlerAsync(WebhookHandler):
         return decorator
 
     async def handle(self, body, signature):
-        events = self.parser.parse(body, signature)
+        payload = self.parser.parse(body, signature, as_payload=True)
 
-        for event in events:
+        for event in payload.events:
             func = None
             key = None
 
@@ -59,8 +59,10 @@ class WebhookHandlerAsync(WebhookHandler):
                 args_count = self.__get_args_count(func)
                 if args_count == 0:
                     await func()
-                else:
+                elif args_count == 1:
                     await func(event)
+                else:
+                    await func(event, payload.destination)
 
     def __add_handler(self, func, event, message=None):
         key = self.__get_handler_key(event, message=message)
