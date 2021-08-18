@@ -1,3 +1,5 @@
+Better alternative: https://github.com/uezo/aiolinebot
+
 🤖 line-bot-sdk-python-extra
 ============================
 
@@ -24,6 +26,7 @@
 .. image:: https://img.shields.io/badge/Ko--fi-donate-blue.svg
    :target: https://ko-fi.com/shivelight
    :alt: Ko-fi - Donate
+
 
 Extra feature for `LINE Messaging API SDK for Python <line-bot-sdk-python_>`_.
 
